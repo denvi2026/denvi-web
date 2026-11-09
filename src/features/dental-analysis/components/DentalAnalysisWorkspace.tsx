@@ -8,7 +8,8 @@ import { TreatmentPlanPanel } from '@/features/treatment-plan/components/Treatme
 import type { TreatmentCategory, TreatmentItem } from '@/features/treatment-plan/model/types'
 import { useTreatmentPlanStore } from '@/features/treatment-plan/model/useTreatmentPlanStore'
 import { usePatientStore } from '@/store/usePatientStore'
-import { Loader2, Upload } from 'lucide-react'
+import { useRestoration } from '@/features/restoration/hooks/useRestoration'
+import { Loader2, RotateCcw, Upload, WandSparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import { useNavigate } from 'react-router-dom'
@@ -54,6 +55,7 @@ export const DentalAnalysisWorkspace = () => {
   const resetTreatmentPlan = useTreatmentPlanStore(s => s.resetTreatmentPlan)
   const selectedPatient = usePatientStore(s => s.selectedPatient)
   const setSelectedPatient = usePatientStore(s => s.setSelectedPatient)
+  const restoration = useRestoration()
 
 
   const [isDragging, setIsDragging] = useState(false)
@@ -90,6 +92,7 @@ export const DentalAnalysisWorkspace = () => {
     setSelectedRegion(null)
     setSelectionMode(false)
     setSelectedTreatmentsLocal([])
+    restoration.reset()
 
     let dataUrl: string
     try {
@@ -156,6 +159,7 @@ export const DentalAnalysisWorkspace = () => {
       setSelectedTreatmentsLocal([])
       setSelectionMode(false)
       setDrawingRect(null)
+      restoration.reset()
     }
     setSelectedPatient(patient)
   }
@@ -205,7 +209,10 @@ export const DentalAnalysisWorkspace = () => {
     const dr = drawingRectRef.current
     if (dr && dr.w > 10 && dr.h > 10) {
       const norm = stageToNorm(dr)
-      if (norm && norm.x2 - norm.x1 > 0.02 && norm.y2 - norm.y1 > 0.02) setSelectedRegion(norm)
+      if (norm && norm.x2 - norm.x1 > 0.02 && norm.y2 - norm.y1 > 0.02) {
+        restoration.reset()
+        setSelectedRegion(norm)
+      }
     }
     drawingRectRef.current = null
     setDrawingRect(null)
@@ -225,6 +232,21 @@ export const DentalAnalysisWorkspace = () => {
   const displayRect = drawingRect ?? regionInStage
   const { stageWidth, stageHeight, imageX, imageY, scale } = viewState
   const canStart = Boolean(preview) && storeSelectedTreatments.length > 0
+  const canRestore = Boolean(preview && selectedRegion && !restoration.isBusy)
+
+  const handleRestoration = () => {
+    if (!preview || !selectedRegion || restoration.isBusy) return
+    void restoration.start(preview, selectedRegion)
+  }
+
+  const restorationStatus = {
+    idle: '복원할 사각형 영역을 선택하세요.',
+    submitting: '이미지와 마스크를 업로드하는 중입니다.',
+    queued: '복원 작업이 대기 중입니다.',
+    processing: '복원 이미지를 생성하는 중입니다.',
+    succeeded: '복원 후보가 준비되었습니다.',
+    failed: restoration.error || '복원에 실패했습니다.',
+  }[restoration.phase]
 
   // ── Treatment handlers ────────────────────────────────────────────────────────
 
@@ -449,6 +471,27 @@ export const DentalAnalysisWorkspace = () => {
                       accept="image/*"
                     />
                   </div>
+                  <div className="absolute left-7 top-6 z-10 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectionMode(current => !current)}
+                      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black backdrop-blur-sm transition-colors ${
+                        selectionMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-black/32 text-white hover:bg-black/44'
+                      }`}
+                    >
+                      <WandSparkles size={17} />
+                      {selectionMode ? '영역 선택 중' : '복원 영역 선택'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRestoration}
+                      disabled={!canRestore}
+                      className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-black text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-black/25 disabled:text-white/50"
+                    >
+                      {restoration.isBusy ? <Loader2 className="animate-spin" size={17} /> : <RotateCcw size={17} />}
+                      선택 영역 복원
+                    </button>
+                  </div>
                   <Stage width={stageWidth} height={stageHeight}>
                     <Layer>
                       <Group x={imageX} y={imageY} scaleX={scale} scaleY={scale}>
@@ -619,6 +662,26 @@ export const DentalAnalysisWorkspace = () => {
                       </div>
                     </div>
                   )}
+                  <div className="absolute bottom-5 left-1/2 z-10 w-[min(92%,620px)] -translate-x-1/2 rounded-2xl bg-slate-950/80 px-4 py-3 text-white shadow-xl backdrop-blur-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold">치아 복원</p>
+                        <p className={`mt-0.5 text-xs ${restoration.phase === 'failed' ? 'text-rose-300' : 'text-white/70'}`}>{restorationStatus}</p>
+                      </div>
+                      {restoration.isBusy && <button type="button" onClick={restoration.cancel} className="rounded-lg px-2 py-1 text-xs font-bold text-white/80 hover:bg-white/10">취소</button>}
+                    </div>
+                    {restoration.resultUrls.length > 0 && (
+                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {restoration.resultUrls.map((url, index) => (
+                          <figure key={url} className="overflow-hidden rounded-lg bg-white/10">
+                            <img src={url} alt={`복원 후보 ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
+                            <figcaption className="px-2 py-1 text-[10px] font-bold text-amber-200">개발용 Mock 결과 · 후보 {index + 1}</figcaption>
+                          </figure>
+                        ))}
+                      </div>
+                    )}
+                    {restoration.phase === 'failed' && <button type="button" onClick={restoration.reset} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-white/75 hover:text-white"><X size={13} /> 오류 닫기</button>}
+                  </div>
                 </>
               )}
             </div>
