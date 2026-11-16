@@ -674,8 +674,8 @@ export const DentalAnalysisWorkspace = () => {
                       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                         {restoration.resultUrls.map((url, index) => (
                           <figure key={url} className="overflow-hidden rounded-lg bg-white/10">
-                            <img src={url} alt={`복원 후보 ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-                            <figcaption className="px-2 py-1 text-[10px] font-bold text-amber-200">개발용 Mock 결과 · 후보 {index + 1}</figcaption>
+                            <img src={url} alt={`복원 후보 ${index + 1}`} className="aspect-[4/3] w-full object-contain" />
+                            <figcaption className={`px-2 py-1 text-[10px] font-bold ${restoration.job?.mock === false ? 'text-emerald-200' : 'text-amber-200'}`}>{restoration.job?.mock === false ? 'AI 복원 결과' : '개발용 Mock 결과'} · 후보 {index + 1}</figcaption>
                           </figure>
                         ))}
                       </div>

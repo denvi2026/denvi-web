@@ -64,6 +64,8 @@ export function useRestoration() {
       setPhase('succeeded')
     } catch (caught) {
       if ((caught as { name?: string }).name === 'AbortError') return
+      // fetch() rejects with a TypeError ("Failed to fetch") when the backend is unreachable or CORS fails.
+      if (caught instanceof TypeError) { setError('복원 서버에 연결할 수 없습니다. 네트워크 또는 서버 상태를 확인하세요.'); setPhase('failed'); return }
       const apiError = caught as RestorationApiError
       setError(apiError.status === 429 ? '작업 대기열이 가득 찼습니다. 잠시 후 다시 시도하세요.' : apiError.message || '복원 요청 중 네트워크 오류가 발생했습니다.')
       setPhase('failed')
