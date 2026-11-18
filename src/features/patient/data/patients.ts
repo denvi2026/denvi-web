@@ -1,5 +1,9 @@
 import type { Patient } from '../model/types'
 
+/**
+ * 개발 및 UI 테스트를 위한 가상 환자 데이터입니다.
+ * 실제 환자의 개인정보나 진료 기록은 포함하지 않습니다.
+ */
 export const PATIENT_LIST: Patient[] = [
   {
     id: 'P-001',

@@ -244,8 +244,10 @@ export const DentalAnalysisWorkspace = () => {
     submitting: '이미지와 마스크를 업로드하는 중입니다.',
     queued: '복원 작업이 대기 중입니다.',
     processing: '복원 이미지를 생성하는 중입니다.',
+    downloading: '복원 결과 이미지를 불러오는 중입니다.',
     succeeded: '복원 후보가 준비되었습니다.',
     failed: restoration.error || '복원에 실패했습니다.',
+    interrupted: restoration.error || '결과 확인이 중단되었습니다. 서버 작업은 계속 진행 중일 수 있습니다.',
   }[restoration.phase]
 
   // ── Treatment handlers ────────────────────────────────────────────────────────
@@ -666,9 +668,9 @@ export const DentalAnalysisWorkspace = () => {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-bold">치아 복원</p>
-                        <p className={`mt-0.5 text-xs ${restoration.phase === 'failed' ? 'text-rose-300' : 'text-white/70'}`}>{restorationStatus}</p>
+                        <p className={`mt-0.5 text-xs ${restoration.phase === 'failed' ? 'text-rose-300' : restoration.phase === 'interrupted' ? 'text-amber-200' : 'text-white/70'}`}>{restorationStatus}</p>
                       </div>
-                      {restoration.isBusy && <button type="button" onClick={restoration.cancel} className="rounded-lg px-2 py-1 text-xs font-bold text-white/80 hover:bg-white/10">취소</button>}
+                      {restoration.isBusy && <button type="button" onClick={restoration.cancel} title="이 화면에서 결과 확인만 중지합니다. 서버 작업은 취소되지 않습니다." className="rounded-lg px-2 py-1 text-xs font-bold text-white/80 hover:bg-white/10">확인 중지</button>}
                     </div>
                     {restoration.resultUrls.length > 0 && (
                       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -681,6 +683,12 @@ export const DentalAnalysisWorkspace = () => {
                       </div>
                     )}
                     {restoration.phase === 'failed' && <button type="button" onClick={restoration.reset} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-white/75 hover:text-white"><X size={13} /> 오류 닫기</button>}
+                    {restoration.canResume && (
+                      <div className="mt-2 flex items-center gap-3">
+                        <button type="button" onClick={() => void restoration.resume()} className="inline-flex items-center gap-1 text-xs font-bold text-white/75 hover:text-white"><RotateCcw size={13} /> 상태 다시 확인</button>
+                        <button type="button" onClick={restoration.reset} className="inline-flex items-center gap-1 text-xs font-bold text-white/75 hover:text-white"><X size={13} /> 닫기</button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
